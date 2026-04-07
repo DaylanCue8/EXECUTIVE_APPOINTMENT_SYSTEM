@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "616328184468",
+    "project_id": "executivesystem",
+    "storage_bucket": "executivesystem.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:616328184468:android:e3b5eca7d669c7c85d6a81",
+        "android_client_info": {
+          "package_name": "executivesystem.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMP5RbBSnBr23Jix2ixKvNPhhCn18QQh8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

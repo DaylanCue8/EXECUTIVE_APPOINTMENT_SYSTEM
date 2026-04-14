@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; 
-import 'firebase_options.dart'; // 1. CRITICAL: Import your options file
+import 'package:shared_preferences/shared_preferences.dart'; // Add this
+import 'firebase_options.dart'; 
 import 'login_page.dart';
+import 'dashboard_page.dart'; // Ensure this is imported
 
 void main() async {
-  // 2. Ensures Flutter framework is ready
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase
   try {
-    // 3. FIX: Pass the options parameter here. 
-    // This stops the "FirebaseOptions cannot be null" error.
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -18,11 +18,34 @@ void main() async {
     print("Firebase Initialization Error: $e");
   }
 
-  runApp(const ExecutiveApp());
+  // --- SESSION CHECK LOGIC ---
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+  String? role = prefs.getString('role');
+  String? name = prefs.getString('fullName');
+  int? userId = prefs.getInt('userId');
+
+  runApp(ExecutiveApp(
+    isLoggedIn: isLoggedIn, 
+    role: role, 
+    name: name, 
+    userId: userId
+  ));
 }
 
 class ExecutiveApp extends StatelessWidget {
-  const ExecutiveApp({super.key});
+  final bool isLoggedIn;
+  final String? role;
+  final String? name;
+  final int? userId;
+
+  const ExecutiveApp({
+    super.key, 
+    required this.isLoggedIn, 
+    this.role, 
+    this.name, 
+    this.userId
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +53,13 @@ class ExecutiveApp extends StatelessWidget {
       title: 'Executive Management System',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF14C6B1)),
         useMaterial3: true,
       ),
-      // Ensure LoginPage is imported correctly from your login_page.dart
-      home: LoginPage(),
+      // If logged in, go to Dashboard. Otherwise, go to Login.
+      home: isLoggedIn 
+          ? DashboardPage(role: role!, name: name!, userId: userId!) 
+          : LoginPage(),
     );
   }
 }

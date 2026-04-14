@@ -12,13 +12,13 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _passController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   
-  String _selectedRole = 'requester';
   bool _isObscured = true;
 
-  // --- SYNCED COLORS WITH LOGIN PAGE ---
+  // --- SYNCED COLORS ---
   final Color _asanaTeal = const Color(0xFF14C6B1);
   final Color _inputBg = const Color(0xFFF4F7F9);
 
+  // Use your server's IP address
   final String apiUrl = "http://192.168.254.101:5000/register";
 
   Future<void> registerUser() async {
@@ -35,7 +35,7 @@ class _RegisterPageState extends State<RegisterPage> {
           "username": _userController.text,
           "password": _passController.text,
           "full_name": _nameController.text,
-          "role": _selectedRole,
+          // Role is removed here because the Backend now hardcodes it to 'requester'
         }),
       );
 
@@ -45,7 +45,10 @@ class _RegisterPageState extends State<RegisterPage> {
         );
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Registration Failed")));
+        final error = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error['error'] ?? "Registration Failed"))
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connection Error")));
@@ -55,7 +58,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _asanaTeal, // Same background color as Login
+      backgroundColor: _asanaTeal,
       body: Stack(
         children: [
           // Header Section
@@ -93,37 +96,19 @@ class _RegisterPageState extends State<RegisterPage> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    // New Logo
                     Image.asset('assets/portal_logo.png', height: 35),
                     const SizedBox(height: 8),
                     const Text("Sign up", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 25),
 
                     _buildDesignField(controller: _nameController, hint: "Full Name", icon: Icons.person_outline),
                     const SizedBox(height: 12),
                     _buildDesignField(controller: _userController, hint: "Username (Email Address)", icon: Icons.alternate_email),
                     const SizedBox(height: 12),
                     _buildDesignField(controller: _passController, hint: "Password", icon: Icons.lock_outline, isPassword: true),
-                    const SizedBox(height: 12),
-
-                    // Role Selection
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(color: _inputBg, borderRadius: BorderRadius.circular(12)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: _selectedRole,
-                          items: ['boss', 'secretary', 'requester'].map((role) {
-                            return DropdownMenuItem(value: role, child: Text(role.toUpperCase(), style: const TextStyle(color: Colors.grey, fontSize: 14)));
-                          }).toList(),
-                          onChanged: (val) => setState(() => _selectedRole = val!),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 15),
+                    
+                    const SizedBox(height: 30),
 
                     // Register Button
                     SizedBox(
@@ -140,11 +125,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 25),
                     const Text("Or Continue With", style: TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 15),
 
-                    // Social Buttons (using Expanded to prevent overflow)
                     Row(
                       children: [
                         Expanded(child: _buildSocialBtn("Apple", "assets/apple_logo.png", Colors.black, Colors.white)),
@@ -153,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 25),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -170,7 +154,6 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           
-          // Back Button
           Positioned(
             top: 40,
             left: 10,
@@ -184,6 +167,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // --- HELPER WIDGETS ---
   Widget _buildDesignField({required TextEditingController controller, required String hint, required IconData icon, bool isPassword = false}) {
     return Container(
       decoration: BoxDecoration(color: _inputBg, borderRadius: BorderRadius.circular(12)),

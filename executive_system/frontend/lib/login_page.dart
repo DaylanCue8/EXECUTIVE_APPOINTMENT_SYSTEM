@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 1. Import for Session
 import 'register_page.dart';
 import 'dashboard_page.dart';
 
@@ -15,13 +16,20 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passController = TextEditingController();
   bool _isObscured = true;
   bool _rememberMe = false;
+  bool _isLoading = false; // 2. Loading State
 
-  // Colors from the reference image
   final Color _asanaTeal = const Color(0xFF14C6B1);
   final Color _inputBg = const Color(0xFFF4F7F9);
   final String apiUrl = "http://192.168.254.101:5000";
 
   Future<void> loginUser() async {
+    if (_userController.text.isEmpty || _passController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill in all fields")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
     try {
       final response = await http.post(
         Uri.parse("$apiUrl/login"),
@@ -38,6 +46,13 @@ class _LoginPageState extends State<LoginPage> {
         String fullName = data['user']['full_name'];
         int userId = data['user']['id'];
 
+        // 3. PERSIST SESSION
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('isLoggedIn', true);
+        await prefs.setString('role', role);
+        await prefs.setString('fullName', fullName);
+        await prefs.setInt('userId', userId);
+
         // FCM Logic
         try {
           FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -50,8 +65,12 @@ class _LoginPageState extends State<LoginPage> {
               body: jsonEncode({"user_id": userId, "fcm_token": token}),
             );
           }
-        } catch (e) { print("FCM Error: $e"); }
+        } catch (e) {
+          print("FCM Error: $e");
+        }
 
+        // 4. Navigate to Dashboard
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => DashboardPage(role: role, name: fullName, userId: userId)),
@@ -61,6 +80,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connection Error")));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -70,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: _asanaTeal,
       body: Stack(
         children: [
-          // 1. Teal Header & Illustration
+          // Header Section
           Column(
             children: [
               const SizedBox(height: 60),
@@ -91,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
 
-          // 2. White Login Card
+          // Login Card
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -119,7 +140,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 25),
 
-                    // Username Field
                     _buildDesignField(
                       controller: _userController,
                       hint: "Username",
@@ -127,7 +147,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Password Field
                     _buildDesignField(
                       controller: _passController,
                       hint: "Password",
@@ -135,7 +154,6 @@ class _LoginPageState extends State<LoginPage> {
                       isPassword: true,
                     ),
 
-                    // Remember Me & Forgot Password
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -158,18 +176,20 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 10),
 
-                    // Login Button
+                    // Login Button with Loading Spinner
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: loginUser,
+                        onPressed: _isLoading ? null : loginUser,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _asanaTeal,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
-                        child: const Text("Login", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: _isLoading 
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Login", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
 
@@ -177,7 +197,6 @@ class _LoginPageState extends State<LoginPage> {
                     const Text("Or Continue With", style: TextStyle(color: Colors.grey, fontSize: 12)),
                     const SizedBox(height: 15),
 
-                    // Social Buttons
                     Row(
                       children: [
                         Expanded(child: _buildSocialBtn("Apple", "assets/apple_logo.png", Colors.black, Colors.white)),

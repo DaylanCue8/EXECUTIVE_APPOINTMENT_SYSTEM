@@ -12,7 +12,12 @@
           "package_name": "executivesystem.com"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "616328184468-tvv7eqttojejt84a3mdi4vgj1qit4cff.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCMP5RbBSnBr23Jix2ixKvNPhhCn18QQh8"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "616328184468-tvv7eqttojejt84a3mdi4vgj1qit4cff.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

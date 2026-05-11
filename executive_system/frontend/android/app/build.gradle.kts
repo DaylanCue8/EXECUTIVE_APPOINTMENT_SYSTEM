@@ -2,8 +2,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // ADD THIS LINE HERE (Remove the version and 'apply false' from here)
-    id("com.google.gms.google-services") 
+    id("com.google.gms.google-services") // Only this one line
 }
 
 android {
@@ -12,6 +11,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // --- ADD THESE THREE LINES TO FIX THE ERROR ---
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -22,17 +23,15 @@ android {
 
     defaultConfig {
         applicationId = "executivesystem.com"
-        // Ensure minSdk is at least 21 for Firebase
-        minSdk = flutter.minSdkVersion 
+        minSdk = flutter.minSdkVersion // Firebase and notifications work best with at least 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true // Helps with large libraries like Firebase
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -40,4 +39,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// --- ADD THIS BLOCK AT THE VERY BOTTOM ---
+dependencies {
+    // This is the specific library that fixes the build failure
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
+    implementation("com.google.firebase:firebase-analytics")
 }

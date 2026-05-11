@@ -41,6 +41,23 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCMP5RbBSnBr23Jix2ixKvNPhhCn18QQh8",
+      authDomain: "executivesystem.firebaseapp.com",
+      projectId: "executivesystem",
+      storageBucket: "executivesystem.appspot.com",
+      messagingSenderId: "616328184468",
+      appId: "1:616328184468:web:e3b5eca7d669c7c85d6a81"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

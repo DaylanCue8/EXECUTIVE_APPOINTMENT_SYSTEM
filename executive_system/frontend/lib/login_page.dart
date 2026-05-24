@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_theme.dart';
 import 'register_page.dart';
 import 'dashboard_page.dart';
 import 'api_config.dart';
@@ -20,11 +21,11 @@ class _LoginPageState extends State<LoginPage> {
   bool _rememberMe = false;
   bool _isLoading = false;
 
-  final Color _navy = const Color(0xFF1D2939);
-  final Color _navyLight = const Color(0xFF263347);
-  final Color _gold = const Color(0xFFC9A84C);
-  final Color _border = const Color(0xFF334155);
-  final Color _hint = const Color(0xFF8A9AB0);
+  final Color _navy = AppColors.primary;
+  final Color _navyLight = AppColors.primaryLight;
+  final Color _gold = AppColors.accent;
+  final Color _border = AppColors.border;
+  final Color _hint = AppColors.hint;
 
   Future<void> loginUser() async {
     if (_userController.text.isEmpty || _passController.text.isEmpty) {
@@ -101,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -116,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF10203A), Color(0xFF152A44)],
+            colors: [AppColors.primary, AppColors.primaryDark],
           ),
         ),
         child: SafeArea(
@@ -143,20 +144,10 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.business_center_rounded,
-                        color: Color(0xFF1D2939),
+                        color: _navy,
                         size: 26,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      "EXECUTIVE SYSTEM",
-                      style: TextStyle(
-                        color: _gold,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -186,12 +177,12 @@ class _LoginPageState extends State<LoginPage> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: AppColors.secondary.withOpacity(0.08),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(32),
                       topRight: Radius.circular(32),
                     ),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    border: Border.all(color: AppColors.secondary.withOpacity(0.08)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.16),

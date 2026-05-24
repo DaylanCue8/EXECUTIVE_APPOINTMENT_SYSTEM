@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'api_config.dart';
+import 'app_theme.dart';
 
 class RequestMeetingPage extends StatefulWidget {
   final int userId;
@@ -16,19 +17,13 @@ class RequestMeetingPage extends StatefulWidget {
 class _RequestMeetingPageState extends State<RequestMeetingPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _meetingTypeController = TextEditingController();
   final TextEditingController _attendeesController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
-
-  final Color _navy = const Color(0xFF1D2939);
-  final Color _navyLight = const Color(0xFF263347);
-  final Color _gold = const Color(0xFFC9A84C);
-  final Color _border = const Color(0xFF334155);
-  final Color _hint = const Color(0xFF8A9AB0);
-  final Color _asanaTeal = const Color(0xFF14C6B1);
+  final TextEditingController _linkController = TextEditingController();
 
   int selectedDayIndex = 0;
   String? selectedSlot;
-  String? selectedMeetingType;
   String? selectedPriority;
   String? selectedDuration;
 
@@ -36,21 +31,10 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
     "9:00 AM", "10:30 AM", "2:00 PM", "4:30 PM", "5:00 PM"
   ];
 
-  final List<String> meetingTypes = [
-    "Budget Discussion",
-    "Project Update",
-    "Urgent Matter",
-    "HR Concern",
-    "Performance Review",
-    "General Inquiry",
-    "Strategic Planning",
-    "Client Meeting",
-  ];
-
   final List<Map<String, dynamic>> priorities = [
-    {"label": "Low", "color": Color(0xFF4CAF50), "icon": Icons.arrow_downward_rounded},
-    {"label": "Normal", "color": Color(0xFF2196F3), "icon": Icons.remove_rounded},
-    {"label": "Urgent", "color": Color(0xFFF44336), "icon": Icons.priority_high_rounded},
+    {"label": "Low", "color": AppColors.success, "icon": Icons.arrow_downward_rounded},
+    {"label": "Normal", "color": AppColors.normal, "icon": Icons.remove_rounded},
+    {"label": "Hard", "color": AppColors.error, "icon": Icons.priority_high_rounded},
   ];
 
   final List<String> durations = [
@@ -68,6 +52,17 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
   void initState() {
     super.initState();
     _initializeSelection();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _meetingTypeController.dispose();
+    _attendeesController.dispose();
+    _contactController.dispose();
+    _linkController.dispose();
+    super.dispose();
   }
 
   void _initializeSelection() {
@@ -146,7 +141,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
 
     if (_titleController.text.isEmpty ||
         selectedSlot == null ||
-        selectedMeetingType == null ||
+        _meetingTypeController.text.isEmpty ||
         selectedPriority == null ||
         selectedDuration == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -167,11 +162,12 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
         "user_id": widget.userId,
         "date": finalDate.toIso8601String().split('T')[0],
         "time": selectedSlot,
-        "meeting_type": selectedMeetingType,
+        "meeting_type": _meetingTypeController.text,
         "priority": selectedPriority,
         "duration": selectedDuration,
         "attendees": _attendeesController.text,
         "contact": _contactController.text,
+        "link": _linkController.text.trim(),
       }),
     );
 
@@ -179,7 +175,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Request Sent!"),
-          backgroundColor: _asanaTeal,
+          backgroundColor: AppColors.accent,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -200,18 +196,18 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
     List<DateTime> days = getWorkDays();
 
     return Scaffold(
-      backgroundColor: _navy,
+      backgroundColor: AppColors.primary,
       appBar: AppBar(
-        backgroundColor: _navy,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: _hint, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new, color: AppColors.hint, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "New Meeting Request",
           style: TextStyle(
-            color: Colors.white,
+            color: AppColors.secondary,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -228,14 +224,14 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                   width: 4,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: _gold,
+                    color: AppColors.warning,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   "Fill in the details below",
-                  style: TextStyle(color: _hint, fontSize: 13),
+                  style: TextStyle(color: AppColors.hint, fontSize: 13),
                 ),
               ],
             ),
@@ -281,13 +277,10 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                     // ── Meeting Type ──────────────────────────────
                     _buildLabel("Meeting Type *"),
                     const SizedBox(height: 8),
-                    _buildDropdown(
-                      value: selectedMeetingType,
-                      hint: "Select meeting type",
-                      icon: Icons.category_rounded,
-                      items: meetingTypes,
-                      onChanged: (val) =>
-                          setState(() => selectedMeetingType = val),
+                    _buildInputField(
+                      _meetingTypeController,
+                      "e.g. Budget Discussion, Project Update",
+                      Icons.category_rounded,
                     ),
                     const SizedBox(height: 20),
 
@@ -303,18 +296,18 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                 setState(() => selectedPriority = p["label"]),
                             child: Container(
                               margin: EdgeInsets.only(
-                                right: p["label"] == "Urgent" ? 0 : 10,
+                                right: p["label"] == "Hard" ? 0 : 10,
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? (p["color"] as Color).withOpacity(0.12)
-                                    : Colors.white,
+                                    : AppColors.secondary,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isSelected
                                       ? p["color"] as Color
-                                      : Colors.grey.shade300,
+                                      : AppColors.border,
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
@@ -324,7 +317,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                     p["icon"] as IconData,
                                     color: isSelected
                                         ? p["color"] as Color
-                                        : Colors.grey,
+                                        : AppColors.hint,
                                     size: 20,
                                   ),
                                   const SizedBox(height: 4),
@@ -335,7 +328,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                       fontWeight: FontWeight.w600,
                                       color: isSelected
                                           ? p["color"] as Color
-                                          : Colors.grey,
+                                          : AppColors.hint,
                                     ),
                                   ),
                                 ],
@@ -367,7 +360,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                       "Names of other people joining this meeting",
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade500,
+                        color: AppColors.hint,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -386,7 +379,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                       "In case the secretary needs to reach you for clarification",
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade500,
+                        color: AppColors.hint,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -394,6 +387,24 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                       _contactController,
                       "e.g. 09XX-XXX-XXXX",
                       Icons.phone_rounded,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Meeting Link ─────────────────────────────
+                    _buildLabel("Link"),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Paste an online meeting URL or resource link",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.hint,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInputField(
+                      _linkController,
+                      "https://example.com/meeting",
+                      Icons.link_rounded,
                     ),
                     const SizedBox(height: 28),
 
@@ -416,12 +427,12 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                               width: 75,
                               margin: const EdgeInsets.only(right: 12),
                               decoration: BoxDecoration(
-                                color: isSelected ? _navy : Colors.white,
+                                color: isSelected ? AppColors.primary : AppColors.secondary,
                                 borderRadius: BorderRadius.circular(15),
                                 border: Border.all(
                                   color: isSelected
-                                      ? _gold
-                                      : Colors.grey.shade300,
+                                      ? AppColors.warning
+                                      : AppColors.border,
                                   width: isSelected ? 2 : 1,
                                 ),
                               ),
@@ -432,7 +443,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                     ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
                                         [days[index].weekday - 1],
                                     style: TextStyle(
-                                      color: isSelected ? _gold : Colors.grey,
+                                      color: isSelected ? AppColors.warning : AppColors.hint,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -470,7 +481,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                 "Checking availability...",
                                 style: TextStyle(
                                   fontStyle: FontStyle.italic,
-                                  color: Colors.grey.shade500,
+                                  color: AppColors.hint,
                                 ),
                               ),
                             ),
@@ -483,7 +494,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                     "No available slots for this day.",
                                     style: TextStyle(
                                       fontStyle: FontStyle.italic,
-                                      color: Colors.grey.shade500,
+                                      color: AppColors.hint,
                                     ),
                                   ),
                                 ),
@@ -503,12 +514,12 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                                         vertical: 10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: isSelected ? _navy : Colors.white,
+                                        color: isSelected ? AppColors.primary : AppColors.secondary,
                                         borderRadius: BorderRadius.circular(10),
                                         border: Border.all(
                                           color: isSelected
-                                              ? _gold
-                                              : Colors.grey.shade300,
+                                              ? AppColors.warning
+                                              : AppColors.border,
                                           width: isSelected ? 2 : 1,
                                         ),
                                       ),
@@ -536,7 +547,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                       child: ElevatedButton(
                         onPressed: _submitRequest,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _gold,
+                          backgroundColor: AppColors.accent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -545,7 +556,7 @@ class _RequestMeetingPageState extends State<RequestMeetingPage> {
                         child: Text(
                           "SEND REQUEST",
                           style: TextStyle(
-                            color: _navy,
+                            color: AppColors.secondary,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.5,

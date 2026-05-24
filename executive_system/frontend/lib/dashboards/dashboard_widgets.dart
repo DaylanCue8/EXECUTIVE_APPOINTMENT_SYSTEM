@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
 // SHARED STAT CARD
-Widget buildStatCard(String label, String value, IconData icon, Color color, {bool fullWidth = false}) {
-  Widget card = Container(
+Widget buildStatCard(
+  String label,
+  String value,
+  IconData icon,
+  Color color, {
+  bool fullWidth = false,
+  VoidCallback? onTap,
+}) {
+  Widget cardContent = Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       color: Colors.white,
@@ -28,18 +35,33 @@ Widget buildStatCard(String label, String value, IconData icon, Color color, {bo
           child: Icon(icon, color: color, size: 28),
         ),
         const SizedBox(width: 18),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            ],
+          ),
         )
       ],
     ),
   );
-  return fullWidth ? SizedBox(width: double.infinity, child: card) : Expanded(child: card);
+
+  Widget card = Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(24),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: cardContent,
+    ),
+  );
+
+  return fullWidth
+      ? SizedBox(width: double.infinity, child: card)
+      : Flexible(fit: FlexFit.tight, child: card);
 }
 
 // SHARED ACTION CARD

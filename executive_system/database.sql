@@ -18,7 +18,26 @@ CREATE TABLE appointments (
     requester_id INT,
     appointment_date DATE,
     appointment_time TIME,
-    status ENUM('pending', 'confirmed', 'cancelled') DEFAULT 'pending',
+    status ENUM('pending', 'secretary_approved', 'confirmed', 'cancelled', 'cancelled_by_boss', 'rescheduled', 'completed') DEFAULT 'pending',
+    meeting_type VARCHAR(50),
+    priority VARCHAR(20),
+    duration VARCHAR(30),
+    attendees TEXT,
+    contact VARCHAR(50),
+    link VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (requester_id) REFERENCES users(id)
+);
+
+-- 3. Chat messages table
+CREATE TABLE chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    message TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id),
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
 );

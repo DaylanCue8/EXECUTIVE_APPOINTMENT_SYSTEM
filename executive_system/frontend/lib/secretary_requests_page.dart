@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'api_config.dart';
+import 'app_theme.dart';
+import 'chat_page.dart';
+import 'chat_list_page.dart';
 
 class SecretaryRequestsPage extends StatefulWidget {
-  const SecretaryRequestsPage({super.key});
+  final int userId;
+  const SecretaryRequestsPage({super.key, required this.userId});
 
   @override
   State<SecretaryRequestsPage> createState() => _SecretaryRequestsPageState();
@@ -73,15 +77,15 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
       debugPrint('[Secretary] Error fetching pending: $e');
     }
 
-    // ── /get_confirmed_meetings returns: confirmed | rescheduled ──────────────
-    // (secretary Tab 3 only shows confirmed, rescheduled lives in Tab 2)
+    // ── /get_confirmed_meetings returns: confirmed only ────────────────────────
+    // (secretary Tab 3 shows confirmed meetings that boss has already approved)
     try {
       final response =
           await http.get(Uri.parse(ApiConfig.getConfirmedMeetings));
       if (response.statusCode == 200) {
         final List all = jsonDecode(response.body);
         setState(() {
-          // Only show truly confirmed on the boss schedule tab
+          // Only show truly confirmed (boss-approved) meetings on the secretary's view
           confirmedSchedule =
               all.where((m) => m['status'] == 'confirmed').toList();
         });
@@ -104,13 +108,15 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              status == 'confirmed'
-                  ? 'Approved — sent to boss ✅'
-                  : status == 'cancelled'
-                      ? 'Request declined ❌'
-                      : 'Marked as $status',
+              status == 'secretary_approved'
+                  ? 'Approved — sent to boss for final review ✅'
+                  : status == 'confirmed'
+                      ? 'Approved — sent to boss ✅'
+                      : status == 'cancelled'
+                          ? 'Request declined ❌'
+                          : 'Marked as $status',
             ),
-            backgroundColor: status == 'confirmed'
+            backgroundColor: (status == 'secretary_approved' || status == 'confirmed')
                 ? _asanaTeal
                 : status == 'cancelled'
                     ? Colors.red
@@ -129,21 +135,24 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
 
   // ── Priority helpers ──────────────────────────────────────────────────────
   Color _priorityColor(String p) {
-    switch (p.toLowerCase()) {
-      case 'urgent': return Colors.red;
-      case 'normal': return Colors.blue;
-      case 'low':    return Colors.green;
-      default:       return Colors.grey;
-    }
+    final s = p.toLowerCase();
+    if (s == 'low') return const Color(0xFF10B981); // AppColors.success
+    if (s == 'normal' || s == 'medium') return AppColors.normal;
+    if (s == 'high' || s == 'hard') return const Color(0xFFEF4444); // AppColors.error
+    return Colors.grey;
   }
 
   IconData _priorityIcon(String p) {
     switch (p.toLowerCase()) {
-      case 'urgent': return Icons.priority_high_rounded;
+      case 'hard': return Icons.priority_high_rounded;
       case 'normal': return Icons.remove_rounded;
       case 'low':    return Icons.arrow_downward_rounded;
       default:       return Icons.help_outline;
     }
+  }
+
+  String _asString(dynamic value) {
+    return value?.toString() ?? '';
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -155,6 +164,15 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
       length: 3,
       child: Scaffold(
         backgroundColor: _bgLight,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatListPage(userId: widget.userId, pinnedRole: 'boss')),
+            );
+          },
+          child: const Icon(Icons.chat_bubble),
+        ),
         appBar: AppBar(
           title: const Text(
             'Secretary Portal',
@@ -359,8 +377,11 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
                         ],
                       ),
                     ),
-                    // Badge: "Sent to Boss" for rescheduled, else priority
-                    if (status == 'rescheduled')
+                    // Badge: "Awaiting Boss Review" for secretary_approved, "Sent to Boss" for rescheduled, else priority
+                    if (status == 'secretary_approved')
+                      _chip('Awaiting Boss Review', Icons.hourglass_top_rounded,
+                          Colors.orange)
+                    else if (status == 'rescheduled')
                       _chip('Sent to Boss', Icons.hourglass_top_rounded,
                           Colors.blue)
                     else if (priority.isNotEmpty)
@@ -426,7 +447,7 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
         const SizedBox(width: 10),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => updateMeeting(item['id'], 'confirmed'),
+            onPressed: () => updateMeeting(item['id'], 'secretary_approved'),
             icon: const Icon(Icons.check_circle, size: 14),
             label: const Text('Approve', style: TextStyle(fontSize: 12)),
             style: ElevatedButton.styleFrom(
@@ -595,6 +616,20 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
                         (item['contact'] ?? '').isEmpty
                             ? 'Not provided'
                             : item['contact']),
+                    if (_asString(item['link']).isNotEmpty || _asString(item['resource_link']).isNotEmpty)
+                      _detailRow(
+                        Icons.link_rounded,
+                        'Link',
+                        _asString(item['link']).isNotEmpty
+                            ? _asString(item['link'])
+                            : _asString(item['resource_link']),
+                      ),
+                    if (_asString(item['attachment_link']).isNotEmpty)
+                      _detailRow(
+                        Icons.attach_file,
+                        'Additional Link',
+                        _asString(item['attachment_link']),
+                      ),
 
                     const SizedBox(height: 4),
                     const Divider(),
@@ -743,6 +778,34 @@ class _SecretaryRequestsPageState extends State<SecretaryRequestsPage> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatPage(
+                                appointmentId: item['id'],
+                                senderId: widget.userId,
+                                appointmentTitle: item['title'] ?? 'Conversation',
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                        label: const Text('Chat with Boss'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ),

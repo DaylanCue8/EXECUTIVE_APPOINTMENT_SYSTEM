@@ -10,8 +10,11 @@ import 'dashboard_page.dart';
 import 'api_config.dart';
 import 'notification_manager.dart';
 import 'notification_service.dart'; // ✅ ADDED
+import 'chat_page.dart';
+import 'app_theme.dart';
 
 final GlobalKey<ScaffoldMessengerState> snackbarKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (Firebase.apps.isEmpty) {
@@ -78,6 +81,12 @@ class _ExecutiveAppState extends State<ExecutiveApp> {
     
     if (widget.isLoggedIn) {
       _refreshFCMToken();
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      FirebaseMessaging.instance.getInitialMessage().then((message) {
+        if (message != null) {
+          _handleMessageOpenedApp(message);
+        }
+      });
     }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -110,7 +119,29 @@ class _ExecutiveAppState extends State<ExecutiveApp> {
       SnackBar(
         content: Text("$title: $body"),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF14C6B1),
+        backgroundColor: AppColors.accent,
+      ),
+    );
+  }
+
+  void _handleMessageOpenedApp(RemoteMessage message) {
+    final type = message.data['type'];
+    if (type != 'chat') return;
+
+    final appointmentId = int.tryParse(message.data['appointment_id']?.toString() ?? '');
+    final receiverId = int.tryParse(message.data['sender_id']?.toString() ?? '');
+    final appointmentTitle = message.data['sender_name']?.toString() ?? message.notification?.title ?? 'Chat';
+
+    if (appointmentId == null || receiverId == null) return;
+
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => ChatPage(
+          appointmentId: appointmentId,
+          senderId: widget.userId,
+          receiverId: receiverId,
+          appointmentTitle: appointmentTitle,
+        ),
       ),
     );
   }
@@ -119,30 +150,31 @@ class _ExecutiveAppState extends State<ExecutiveApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       scaffoldMessengerKey: snackbarKey,
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF14C6B1),
+          seedColor: AppColors.primary,
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF4F7F9),
+        scaffoldBackgroundColor: AppColors.secondary,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1D2939),
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.primaryDark,
+          foregroundColor: AppColors.onPrimary,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
         ),
         cardTheme: CardThemeData(
-          color: Colors.white,
+          color: AppColors.secondary,
           elevation: 6,
-          shadowColor: Colors.black.withOpacity(0.12),
+          shadowColor: Colors.black.withAlpha((0.12 * 255).round()),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF14C6B1),
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.accent,
+            foregroundColor: AppColors.onSecondary,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 4,
             textStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -150,7 +182,7 @@ class _ExecutiveAppState extends State<ExecutiveApp> {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFFF4F7F9),
+          fillColor: AppColors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,

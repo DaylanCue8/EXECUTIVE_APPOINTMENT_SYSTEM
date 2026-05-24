@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'app_theme.dart';
 import 'api_config.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -16,22 +17,22 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isObscured = true;
   bool _isLoading = false;
 
-  final Color _navy = const Color(0xFF1D2939);
-  final Color _navyLight = const Color(0xFF263347);
-  final Color _gold = const Color(0xFFC9A84C);
-  final Color _border = const Color(0xFF334155);
-  final Color _hint = const Color(0xFF8A9AB0);
+  final Color _navy = AppColors.primary;
+  final Color _navyLight = AppColors.primaryLight;
+  final Color _gold = AppColors.accent;
+  final Color _border = AppColors.border;
+  final Color _hint = AppColors.hint;
 
   Future<void> registerUser() async {
     if (_nameController.text.isEmpty ||
         _userController.text.isEmpty ||
         _passController.text.isEmpty) {
-      _showSnackBar("Please fill all fields", Colors.redAccent);
+      _showSnackBar("Please fill all fields", AppColors.error);
       return;
     }
 
     if (_passController.text.length < 6) {
-      _showSnackBar("Password must be at least 6 characters", Colors.orange);
+      _showSnackBar("Password must be at least 6 characters", AppColors.warning);
       return;
     }
 
@@ -53,10 +54,10 @@ class _RegisterPageState extends State<RegisterPage> {
         if (mounted) Navigator.pop(context);
       } else {
         final error = jsonDecode(response.body);
-        _showSnackBar(error['error'] ?? "Registration failed", Colors.redAccent);
+        _showSnackBar(error['error'] ?? "Registration failed", AppColors.error);
       }
     } catch (e) {
-      _showSnackBar("Connection error. Is the server running?", Colors.redAccent);
+      _showSnackBar("Connection error. Is the server running?", AppColors.error);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -81,7 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF10203A), Color(0xFF152A44)],
+            colors: [AppColors.primary, AppColors.primaryDark],
           ),
         ),
         child: SafeArea(
@@ -132,16 +133,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         size: 24,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "EXECUTIVE SYSTEM",
-                      style: TextStyle(
-                        color: _gold,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
                     const SizedBox(height: 8),
                     const Text(
                       "Create account",
@@ -169,12 +160,12 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: AppColors.secondary.withOpacity(0.08),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(32),
                       topRight: Radius.circular(32),
                     ),
-                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    border: Border.all(color: AppColors.secondary.withOpacity(0.08)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.16),

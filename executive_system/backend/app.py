@@ -34,10 +34,12 @@ except Exception as e:
     print(f"Firebase init error: {e}")
 
 
-def send_push_notification(token, title, body):
+def send_push_notification(token, title, body, data=None):
     try:
+        data_payload = {str(k): str(v) for k, v in (data or {}).items()}
         message = messaging.Message(
             notification=messaging.Notification(title=title, body=body),
+            data=data_payload,
             android=messaging.AndroidConfig(
                 priority='high',
                 notification=messaging.AndroidNotification(
@@ -99,21 +101,51 @@ class Appointment(db.Model):
     duration         = db.Column(db.String(30), nullable=True)
     attendees        = db.Column(db.Text, nullable=True)
     contact          = db.Column(db.String(50), nullable=True)
+    link             = db.Column(db.String(255), nullable=True)
+
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        sender = db.session.get(User, self.sender_id)
+        receiver = db.session.get(User, self.receiver_id)
+        return {
+            'id': self.id,
+            'appointment_id': self.appointment_id,
+            'sender_id': self.sender_id,
+            'receiver_id': self.receiver_id,
+            'sender_name': sender.full_name if sender else 'Unknown',
+            'receiver_name': receiver.full_name if receiver else 'Unknown',
+            'message': self.message,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+with app.app_context():
+    db.create_all()
 
 
 # ── STATUS FLOW ───────────────────────────────────────────────────────────────
 #
-#  User submits          → pending
-#  Secretary approves    → confirmed          → Boss calendar
-#  Secretary declines    → cancelled          → user notified
-#  Boss rejects          → cancelled_by_boss  → Secretary "Boss Rejected" tab
-#  Secretary reschedules → rescheduled        → Boss calendar again
-#  Boss approves resched → confirmed          → stays in Boss calendar
-#  Boss rejects resched  → cancelled_by_boss  → Secretary "Boss Rejected" tab again
-#  Meeting done          → completed
+#  User submits             → pending
+#  Secretary approves       → secretary_approved    → Boss review queue
+#  Secretary declines       → cancelled             → user notified
+#  Boss approves            → confirmed             → Boss calendar
+#  Boss rejects             → cancelled_by_boss     → Secretary "Boss Rejected" tab
+#  Secretary reschedules    → rescheduled           → Boss approval queue again
+#  Boss approves resched    → confirmed             → stays in Boss calendar
+#  Boss rejects resched     → cancelled_by_boss     → Secretary "Boss Rejected" tab again
+#  Meeting done             → completed
 #
-#  /get_pending_meetings   returns: pending | cancelled_by_boss | rescheduled
-#  /get_confirmed_meetings returns: confirmed | rescheduled
+#  /get_pending_meetings            returns: pending | cancelled_by_boss | rescheduled (Secretary's queue)
+#  /get_awaiting_boss_approval      returns: secretary_approved | rescheduled (Boss's approval queue)
+#  /get_confirmed_meetings          returns: confirmed | rescheduled (Boss's confirmed calendar)
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -185,6 +217,7 @@ def request_meeting():
         duration         = data.get('duration'),
         attendees        = data.get('attendees'),
         contact          = data.get('contact'),
+        link             = data.get('link'),
     )
     db.session.add(new_appt)
     db.session.commit()
@@ -248,16 +281,144 @@ def get_pending():
             "duration":       appt.duration or "",
             "attendees":      appt.attendees or "",
             "contact":        appt.contact or "",
+            "link":           appt.link or "",
+        })
+    return jsonify(output), 200
+
+
+@app.route('/chat_messages/<int:appointment_id>', methods=['GET'])
+def get_chat_messages(appointment_id):
+    messages = ChatMessage.query.filter_by(appointment_id=appointment_id).order_by(ChatMessage.timestamp.asc()).all()
+    return jsonify([message.to_dict() for message in messages]), 200
+
+
+@app.route('/conversations/<int:user_id>', methods=['GET'])
+def get_conversations(user_id):
+    # Return latest conversation threads for a user grouped by the other participant
+    msgs = ChatMessage.query.filter(
+        (ChatMessage.sender_id == user_id) | (ChatMessage.receiver_id == user_id)
+    ).order_by(ChatMessage.timestamp.desc()).all()
+
+    seen = {}
+    output = []
+    for m in msgs:
+        other_id = m.sender_id if m.sender_id != user_id else m.receiver_id
+        if other_id in seen:
+            continue
+        other = db.session.get(User, other_id)
+        output.append({
+            'other_id': other_id,
+            'other_name': other.full_name if other else 'Unknown',
+            'other_role': other.role if other else '',
+            'last_message': m.message,
+            'timestamp': m.timestamp.isoformat() if m.timestamp else None,
+            'appointment_id': m.appointment_id,
+        })
+        seen[other_id] = True
+
+    return jsonify(output), 200
+
+
+@app.route('/send_chat_message', methods=['POST'])
+def send_chat_message():
+    data = request.get_json()
+    appointment_id = data.get('appointment_id')
+    sender_id = data.get('sender_id')
+    message_text = (data.get('message') or '').strip()
+
+    if not appointment_id or not sender_id or not message_text:
+        return jsonify({'message': 'appointment_id, sender_id, and message are required'}), 400
+
+    appointment = db.session.get(Appointment, appointment_id)
+    sender = db.session.get(User, sender_id)
+    if not appointment:
+        return jsonify({'message': 'Appointment not found'}), 404
+    if not sender:
+        return jsonify({'message': 'Sender not found'}), 404
+
+    receiver_id = data.get('receiver_id')
+    receiver = None
+    if receiver_id:
+        receiver = db.session.get(User, receiver_id)
+    else:
+        if sender.role == 'requester':
+            receiver = User.query.filter_by(role='secretary').first()
+        elif sender.role == 'secretary':
+            receiver = User.query.filter_by(role='boss').first()
+        elif sender.role == 'boss':
+            receiver = User.query.filter_by(role='secretary').first()
+
+    if not receiver:
+        return jsonify({'message': 'Recipient could not be determined'}), 404
+
+    chat = ChatMessage(
+        appointment_id=appointment_id,
+        sender_id=sender_id,
+        receiver_id=receiver.id,
+        message=message_text,
+    )
+    db.session.add(chat)
+    db.session.commit()
+
+    if receiver.fcm_token:
+        send_push_notification(
+            receiver.fcm_token,
+            f'New message from {sender.full_name or sender.username}',
+            message_text if len(message_text) < 100 else f'{message_text[:97]}...',
+            data={
+                'type': 'chat',
+                'appointment_id': appointment_id,
+                'sender_id': sender_id,
+                'sender_name': sender.full_name or sender.username,
+            },
+        )
+
+    return jsonify(chat.to_dict()), 201
+
+
+# ── Boss: awaiting approval ───────────────────────────────────────────────────
+#  Secretary has approved these, now boss needs to approve or reject
+@app.route('/get_awaiting_boss_approval', methods=['GET'])
+def get_awaiting_boss_approval():
+    BOSS_APPROVAL_STATUSES = ['secretary_approved', 'rescheduled']
+
+    results = (
+        db.session.query(Appointment, User)
+        .join(User, Appointment.requester_id == User.id)
+        .filter(Appointment.status.in_(BOSS_APPROVAL_STATUSES))
+        .order_by(
+            Appointment.appointment_date.asc(),
+            Appointment.appointment_time.asc(),
+        )
+        .all()
+    )
+
+    print(f"[get_awaiting_boss_approval] {len(results)} records")
+    output = []
+    for appt, user in results:
+        output.append({
+            "id":             appt.id,
+            "title":          appt.title,
+            "description":    appt.description or "",
+            "date":           str(appt.appointment_date),
+            "time":           format_time(appt.appointment_time),
+            "status":         appt.status,
+            "requester_name": user.full_name,
+            "meeting_type":   appt.meeting_type or "",
+            "priority":       appt.priority or "",
+            "duration":       appt.duration or "",
+            "attendees":      appt.attendees or "",
+            "contact":        appt.contact or "",
+            "link":           appt.link or "",
         })
     return jsonify(output), 200
 
 
 # ── Boss: calendar ────────────────────────────────────────────────────────────
-#  confirmed   → approved by secretary
-#  rescheduled → re-submitted after boss rejection (boss needs to approve/reject again)
+#  confirmed → approved by both secretary and boss (fully confirmed)
 @app.route('/get_confirmed_meetings', methods=['GET'])
 def get_confirmed_meetings():
-    BOSS_STATUSES = ['confirmed', 'rescheduled']
+    BOSS_STATUSES = ['confirmed']
 
     results = (
         db.session.query(Appointment, User)
@@ -285,6 +446,7 @@ def get_confirmed_meetings():
             "duration":       appt.duration or "",
             "attendees":      appt.attendees or "",
             "contact":        appt.contact or "",
+            "link":           appt.link or "",
         })
     return jsonify(output), 200
 
@@ -306,7 +468,17 @@ def update_status(appt_id):
 
     requester = db.session.get(User, appt.requester_id)
 
-    if new_status == 'confirmed':
+    if new_status == 'secretary_approved':
+        # Secretary approved, now waiting for boss approval
+        boss = User.query.filter_by(role='boss').first()
+        if boss and boss.fcm_token:
+            send_push_notification(
+                boss.fcm_token,
+                "New Meeting Awaiting Approval 📋",
+                f"'{appt.title}' from {requester.full_name if requester else 'User'} is ready for your review.",
+            )
+
+    elif new_status == 'confirmed':
         if requester and requester.fcm_token:
             send_push_notification(
                 requester.fcm_token,
@@ -415,6 +587,7 @@ def get_user_meetings(user_id):
             "duration":     m.duration or "",
             "attendees":    m.attendees or "",
             "contact":      m.contact or "",
+            "link":         m.link or "",
         })
     return jsonify(output), 200
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
 import 'dashboards/boss_dashboard.dart';
 import 'dashboards/secretary_dashboard.dart';
 import 'dashboards/requester_dashboard.dart';
 import 'admin_page.dart';
 import 'login_page.dart';
 import 'notification_icon.dart'; // ✅ ADDED
+import 'chat_list_page.dart';
 
 class DashboardPage extends StatefulWidget {
   final String role;
@@ -18,8 +20,8 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final Color _primaryTeal = const Color(0xFF14C6B1);
-  final Color _darkBg = const Color(0xFF1D2939);
+  final Color _primaryTeal = AppColors.accent;
+  final Color _darkBg = AppColors.primary;
 
   bool get _isAdmin => widget.role.toLowerCase() == 'admin';
 
@@ -35,8 +37,8 @@ class _DashboardPageState extends State<DashboardPage> {
             Container(
               height: 120,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [_darkBg, const Color(0xFF101828)],
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDark],
                 ),
               ),
               child: SafeArea(
@@ -102,7 +104,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // All other roles use the original CustomScrollView layout
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7F9),
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           _buildSliverAppBar(),
@@ -114,6 +116,22 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final role = widget.role.toLowerCase();
+          String pinned = 'secretary';
+          if (role == 'secretary') pinned = 'boss';
+          if (role == 'boss') pinned = 'secretary';
+
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ChatListPage(userId: widget.userId, pinnedRole: pinned)),
+          );
+          setState(() {});
+        },
+        backgroundColor: AppColors.accent,
+        child: const Icon(Icons.chat_bubble),
+      ),
     );
   }
 
@@ -122,7 +140,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'boss':
         return BossDashboard(userId: widget.userId);
       case 'secretary':
-        return SecretaryDashboard();
+        return SecretaryDashboard(userId: widget.userId);
       case 'requester':
       default:
         return RequesterDashboard(userId: widget.userId);
@@ -144,10 +162,10 @@ class _DashboardPageState extends State<DashboardPage> {
           background: Container(
             padding: const EdgeInsets.only(left: 24, bottom: 24),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [_darkBg, const Color(0xFF101828)],
+                colors: [AppColors.primary, AppColors.primaryDark],
               ),
               boxShadow: [
                 BoxShadow(

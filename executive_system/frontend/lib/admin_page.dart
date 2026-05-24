@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'app_theme.dart';
 import 'api_config.dart';
 
 class AdminPage extends StatefulWidget {
@@ -15,9 +16,9 @@ class _AdminPageState extends State<AdminPage> {
   List appointments = [];
   bool isLoading = true;
 
-  final Color _asanaTeal = const Color(0xFF14C6B1);
-  final Color _bgLight = const Color(0xFFF4F7F9);
-  final Color _navy = const Color(0xFF1D2939);
+  final Color _asanaTeal = AppColors.accent;
+  final Color _bgLight = AppColors.surface;
+  final Color _navy = AppColors.primary;
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _AdminPageState extends State<AdminPage> {
       );
       refreshData();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Role updated to $newRole"), backgroundColor: _asanaTeal),
+        const SnackBar(content: Text("Role updated"), backgroundColor: AppColors.accent),
       );
     } catch (e) {
       debugPrint("Error updating role: $e");
@@ -81,7 +82,7 @@ class _AdminPageState extends State<AdminPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(currentStatus ? "User deactivated" : "User reactivated"),
-          backgroundColor: currentStatus ? Colors.orange : _asanaTeal,
+          backgroundColor: currentStatus ? AppColors.warning : AppColors.accent,
         ),
       );
     } catch (e) {
